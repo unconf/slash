@@ -3,7 +3,6 @@ module Routing exposing (..)
 import Navigation exposing (Location)
 import Models exposing (Route(..))
 import UrlParser exposing (..)
-import Dict
 
 matchers : Parser (Route -> a) a
 matchers =

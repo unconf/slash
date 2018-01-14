@@ -8,6 +8,7 @@ import View exposing (view)
 import Html.Styled exposing (toUnstyled)
 import Window
 import Task
+import Time
 
 initialSizeCmd : Cmd Msg
 initialSizeCmd =
@@ -26,6 +27,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
       [ Window.resizes OnResize
+      -- , Time.every Time.millisecond (always OnRefocus)
       ]
 
 

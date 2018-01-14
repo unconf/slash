@@ -3,40 +3,44 @@ module Update exposing (..)
 import Msgs exposing (Msg)
 import Models exposing (..)
 import Routing exposing (parseLocation, getRoute, navigate)
-import Common exposing (prompt)
+import Task
+import Dom
+import Dom.Scroll
+
+batchCmds : Cmd a -> Cmd a -> Cmd a
+batchCmds a b = Cmd.batch [a, b]
+
+tuple : a -> b -> (a, b)
+tuple a b = (a, b)
+
+noCmd : Model -> (Model, Cmd Msg)
+noCmd m = (m, Cmd.none)
+
+scrollMain : Cmd Msg
+scrollMain =
+  Dom.Scroll.toBottom "main"
+  |> Task.attempt Msgs.OnTaskResult
+
+focusShell : Cmd Msg
+focusShell =
+  Dom.focus "shell"
+  |> Task.attempt Msgs.OnTaskResult
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Msgs.OnLocationChange location ->
-          ( { model | route = parseLocation location }, Cmd.none )
+          noCmd { model | route = parseLocation location }
         Msgs.OnResize sz ->
-          ( {model | windowSize = sz}, Cmd.none )
-        Msgs.OnTextChanged s ->
-            s
-            |> extractInput
-            |> processInput model
+          noCmd {model | windowSize = sz}
+        Msgs.OnTextChanged s -> noCmd {model | currentInput = s}
+        Msgs.OnEnter ->
+          model.currentInput
+          |> processInput model
+          |> Tuple.mapSecond (batchCmds scrollMain)
+        Msgs.OnRefocus -> (model, focusShell)
+        Msgs.OnTaskResult r -> noCmd model
 
-type Input =
-  Completed String
-  | Partial String
-
-stripPrompt = String.dropLeft (String.length prompt)
-
-extractInput : String -> Input
-extractInput s =
-  case String.lines s |> List.reverse of
-    last :: prev :: rest ->
-      if String.isEmpty last
-        then
-          prev
-            |> stripPrompt
-            |> Completed
-        else
-          last
-            |> stripPrompt
-            |> Partial
-    _ -> Debug.crash "should never happen"
 
 execute : String -> (Maybe Command, Cmd Msg)
 execute s =
@@ -67,11 +71,7 @@ executeImpl cmd params =
         |> Result.map (\ route -> (Nothing, navigate route))
       _ -> Err ("Unknown command: '" ++ cmd ++ "'")
 
-processInput : Model -> Input -> (Model, Cmd Msg)
+processInput : Model -> String -> (Model, Cmd Msg)
 processInput m input =
-  case input of
-    Completed s ->
-      let (cmd, extCmd) = execute s
+      let (cmd, extCmd) = execute input
       in ({ m | currentInput = "", history = cmd :: m.history}, extCmd)
-    Partial s ->
-      ( {m  | currentInput = s}, Cmd.none)

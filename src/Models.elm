@@ -1,6 +1,5 @@
 module Models exposing (..)
 import Window exposing (Size)
-import Common exposing (prompt)
 type alias Model =
     { route : Route
     , history : List (Maybe Command)
